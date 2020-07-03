@@ -10,6 +10,7 @@ from helpers import *
 
 
 def main() -> None:
+    print("Hello")
     start: Decimal = Decimal(time.time())
     # Main code
 
