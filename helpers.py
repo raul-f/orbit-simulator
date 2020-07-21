@@ -3,24 +3,22 @@ from typing import List
 from classes import vetor
 
 
-def calc_acel(corpo, o_corpos) -> List[float]:
+def calc_acel(corpo, lst_corpos) -> List[float]:
     """ (corpo_celeste, list) -> vetor
     Calcula o vetor aceleração de um objeto do tipo `corpo_celeste`,
     a partir da força sobre si resultante das interações com outros corpos
-    celestes em sua proximidade.
+    celestes na lista `lst_corpos`.
     """
-    gravitational_const: float = 1e-4
-    position_module: float = get_module(positions)
-    accelerations: List[float] = []
-    coordinate: float
-    for coordinate in positions:
-        accelerations.append(
-            - coordinate * (
-                gravitational_const * mass /
-                position_module ** 3
-            ) ** (1 / 2)
-        )
-    return accelerations
+    
+    # Força resultante
+    f_res = vetor([0] * corpo['acel'].dimensao)
+    const_gravitacional: float = 1e-12
+
+    for cc in lst_corpos:
+        vetor_r =  cc['pos'] - corpo['pos']
+        f_res += (const_gravitacional * corpo['massa'] * cc['massa'] / vetor_r.modulo() ** 3) * vetor_r
+
+    return f_res * (1 / corpo['massa'])
 
 
 # def get_module(vector: List[float]) -> float:

@@ -1,7 +1,7 @@
 class vetor():
     def __init__(self, coords):
         self.coords = coords[:]
-        self.dimension = len(self.coords)
+        self.dimensao = len(self.coords)
 
     def __getitem__(self, val):
         if isinstance(val, int):
@@ -37,13 +37,17 @@ class vetor():
         return vetor(novas_coords)
     
     def __len__(self):
-        return self.dimension
+        return self.dimensao
 
     def __str__(self):
         return str(tuple(self.coords))
     
-    def module(self):
+    def modulo(self):
         mod = 0
         for c in self.coords:
             mod += c * c
         return mod ** (1/2)
+    
+    def versor(self):
+        vers = self[:]
+        return vers * (1 / self.modulo())

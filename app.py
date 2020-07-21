@@ -1,5 +1,5 @@
 import time
-
+import math
 
 from decimal import Decimal
 from typing import List
@@ -14,34 +14,28 @@ def main() -> None:
     start: Decimal = Decimal(time.time())
     # Main code
 
-    u = vetor([1, 0])
-    v = u[:]
-    w = vetor([3, 4])
-
-    v[1] = 1
-
-    print(v)
-
-    v += 3 * w
-
-    print(v)
-    print(w)
-
-
     sist_solar = [
         {
-            'pos': vetor([600, 250]),
-            'vel': vetor([12, 0]),
+            'pos': vetor([1000, 250]),
+            'vel': vetor([6, 0]),
             'acel': vetor([0, 0]),
-            'massa': 2e5
+            'massa': 2e10
         },
         {
-            'pos': vetor([600, 375]),
-            'vel': vetor([0, 0]),
+            'pos': vetor([1200, 375]),
+            'vel': vetor([-2, 0]),
             'acel': vetor([0, 0]),
-            'massa': 2e5
+            'massa': 2e16
+        },
+        {
+            'pos': vetor([1100, 400]),
+            'vel': vetor([0, -5]),
+            'acel': vetor([0, 0]),
+            'massa': 2e14
         }
     ]
+
+    dados_sim = simular(sist_solar, int(1e5), 0.1)
 
     # End of main code
     end: Decimal = Decimal(time.time())
@@ -50,19 +44,23 @@ def main() -> None:
         f'This program took {execution_time} miliseconds ({execution_time / 1000} seconds) to run.'
     )
 
+    animar(dados_sim)
+
 def simular(ccs, c, delta_t):
-    '''(list, int, float) -> list
+    '''(list, int, float) -> dict
     RECEBE uma lista `ccs` de objetos do tipo `corpo_celeste`, um inteiro `c` e um tamanho de passo `delta_t`.
     
     CALCULA as mudanças de posição, velocidade e aceleração desses objetos por `c` ciclos e armazena a mudança de posição dada uma variação de tempo `delta_t` de cada corpo celeste por ciclo em um objeto correspondente do tipo `trajetoria`.
 
-    RETORNA uma lista de objetos do tipo `trajetoria`.
+    RETORNA um dicionário com uma lista de objetos do tipo `trajetoria` e o número `c` de ciclos.
     '''
-    trajetorias = []
+    trajetorias = { 'ciclos': c, 'trajs': []}
     copias = []
 
     for cc in ccs:
-        trajetorias.append({ 'pos_ini': cc['pos'][:], 'deltas_s': []})
+        trajetorias['trajs'].append(
+            { 'pos_ini': cc['pos'][:], 'deltas_s': [], 'massa': cc['massa'] }
+        )
         copias.append(
             { 
                 'pos': cc['pos'][:], 
@@ -77,75 +75,65 @@ def simular(ccs, c, delta_t):
     for i in range(c):
 
         for j in range(num_corpos):
-            trajetorias[j]['deltas_s'].append(copias[j]['vel'] * delta_t)
+            trajetorias['trajs'][j]['deltas_s'].append(copias[j]['vel'] * delta_t)
 
             copias[j]['pos'] += copias[j]['vel'] * delta_t
 
             if j < num_corpos - 1:
-                copias[j]['acel'] = calc_acel(copias[j], copias[0:j] + copias[j + 1:len(copias)])
+                outros = copias[0:j] + copias[j + 1:len(copias)]
             else:
-                copias[j]['acel'] = calc_acel(copias[0:j])
-
+                outros = copias[0:j]
+            
+            copias[j]['acel'] = calc_acel(copias[j], outros)
             copias[j]['vel'] += copias[j]['acel'] * delta_t
 
     return trajetorias
 
-def animar():
-    window_width: int = 1200
-    window_height: int = 750
+def animar(dados):
+    window_width: int = 1920
+    window_height: int = 1080
 
     window: GraphWin = GraphWin(
         title="Orbit Simulator - phase 1", width=window_width, height=window_height
     )
     window.setBackground('#101010')
 
-    planet_1: Circle = Circle(Point(600, 250), radius=1)
-    planet_1.setFill('white')
-    planet_1.setOutline('white')
+    corpos_c = []
+    massa_min = dados['trajs'][0]['massa']
 
-    planet_1.draw(window)
+    for t in dados['trajs']:
+        if t['massa'] < massa_min:
+            massa_min = t['massa']
 
-    star: Circle = Circle(Point(600, 375), radius=10)
-    star.setFill('#FDB813')
-    star_center = star.getCenter()
-    star_positions = [
-        star_center.getX(),
-        star_center.getY()
-    ]
+    for c, t in enumerate(dados['trajs']):
+        print(math.log2(t['massa']) // math.log2(massa_min))
+        corpos_c.append(Circle(Point(t['pos_ini'][0], t['pos_ini'][1]), radius=math.log2(t['massa']) // math.log2(massa_min)))
+        corpos_c[-1].setFill(f'#aa{c * 3 % 10}')
+        corpos_c[-1].setOutline(f'#aa{c * 3 % 10}')
+        corpos_c[-1].draw(window)
 
-    star.draw(window)
+    for i in range(dados['ciclos']):
+        for j in range(len(corpos_c)):
+            delta_s = dados['trajs'][j]['deltas_s'][i]
 
-    planet_1_speeds = [0.001, 0.01]
+            trajectory = Line(
+                Point(
+                    corpos_c[j].getCenter().getX(),
+                    corpos_c[j].getCenter().getY()
+                ),
+                Point(
+                    corpos_c[j].getCenter().getX() + delta_s[0],
+                    corpos_c[j].getCenter().getY() + delta_s[1]
+                ),
+            )
 
-    i = 0
-    while True:
-        trajectory: Line = Line(
-            Point(
-                planet_1.getCenter().getX(),
-                planet_1.getCenter().getY()
-            ),
-            Point(
-                planet_1.getCenter().getX() + planet_1_speeds[0] * 0.05,
-                planet_1.getCenter().getY() + planet_1_speeds[1] * 0.05
-            ),
-        )
-        planet_1.move(planet_1_speeds[0] * 0.05, planet_1_speeds[1] * 0.05)
-        trajectory.setOutline('#b7b7c2')
-        trajectory.draw(window)
-        planet_1_center = planet_1.getCenter()
+            trajectory.setOutline(f'#aa{j * 3 % 10}')
 
-        planet_1_positions = [
-            planet_1_center.getX() - star_positions[0],
-            planet_1_center.getY() - star_positions[1],
-        ]
+            corpos_c[j].move(delta_s[0], delta_s[1])
 
-        planet_1_accelerarions = get_accelerations(planet_1_positions, 2e5)
-        for i in range(0, 2):
-            planet_1_speeds[i] += planet_1_accelerarions[i] * 0.05
-        i += 1
+            trajectory.draw(window)
 
-        # print(planet_1_speeds)
-        # time.sleep(0.01)
+            time.sleep(0.001)
 
     window.getMouse()
 
