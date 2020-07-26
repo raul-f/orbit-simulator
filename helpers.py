@@ -2,20 +2,20 @@ import math
 from typing import List
 
 
-def get_accelerations(positions: List[float], mass: float) -> List[float]:
+def get_acceleration(positions: List[float], mass: float) -> List[float]:
     """Calculates a particle's acceleration vector, 
     from its position vector relative to the other body and the 
     mass of the other body."""
-    gravitational_const: float = 1e-4
+    gravitational_const: float = 0.00593
     position_module: float = get_module(positions)
     accelerations: List[float] = []
     coordinate: float
     for coordinate in positions:
         accelerations.append(
-            - coordinate * (
+            - (coordinate / position_module) * (
                 gravitational_const * mass /
-                position_module ** 3
-            ) ** (1 / 2)
+                position_module ** 2
+            )
         )
     return accelerations
 
