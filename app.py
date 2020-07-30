@@ -4,8 +4,8 @@
 """
 Orbit simulator script
 
-Simulates the orbit of a small body around a much bigger body.
-The mass of the small body in not considered. Uses a second-
+Simulates the orbit of a small body around a much larger body.
+The mass of the larger body in not considered. Uses a second-
 order discrete aproximation for the body position over time.
 """
 
@@ -202,7 +202,11 @@ def main() -> None:
                                           + planet_2_accelerations[1]) / 2
 
         if get_module(planet_2_positions[0])[1] < star_radius:
-            print("Your planet colided with the star!")
+            print("Planet 1 colided with the star!")
+            break
+
+        if get_module(planet_2_positions[0])[1] < star_radius:
+            print("Planet 2 colided with the star!")
             break
 
         # The total displacement is final_position (the position
