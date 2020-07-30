@@ -1,28 +1,34 @@
+"""Helping functions for the orbit simulator"""
+
+# general imports
 import math
 from typing import List
+import numpy as np
+
+__author__ = "Allan E. Feitosa"
+__credits__ = "Raul O. Figueiredo"
+__version__ = 1.0
 
 
-def get_acceleration(positions: List[float], mass: float) -> List[float]:
-    """Calculates a particle's acceleration vector, 
-    from its position vector relative to the other body and the 
-    mass of the other body."""
-    gravitational_const: float = 0.00593
-    position_module: float = get_module(positions)
-    accelerations: List[float] = []
+def get_normalized_acceleration(
+   position: List[float], radius: float) -> np.ndarray:
+    """Returns an array of the particle's normalized acceleration
+    vector,from its position vector relative to the larger body
+    and the mass of the larger body."""
+    position_module: List[float] = get_module(position)
+    normalized_acceleration: List[float] = []
     coordinate: float
-    for coordinate in positions:
-        accelerations.append(
-            - (coordinate / position_module) * (
-                gravitational_const * mass /
-                position_module ** 2
-            )
+    for coordinate in position:
+        normalized_acceleration.append(
+            - coordinate / (position_module[0] * position_module[1])
         )
-    return accelerations
+    return np.array(normalized_acceleration)
 
 
-def get_module(vector: List[float]) -> float:
-    """Calculates the norm of a vector."""
+def get_module(vector: List[float]) -> List[float]:
+    """Returns the square of vector module at position 0
+    and the vector module at position 1."""
     square_module = 0
     for coordinate in vector:
         square_module += coordinate ** 2
-    return square_module ** (1 / 2)
+    return [square_module, square_module ** (1 / 2)]
