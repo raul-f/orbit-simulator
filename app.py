@@ -10,8 +10,8 @@ order discrete aproximation for the body position over time.
 """
 
 # Second-order model:
-# deltaX[i+1] = deltaX[i] + (a[i]+a[i-1]) / 2
-# deltaX[i]: body displacement at time i
+# deltaX[i+1] = deltaX[i] + deltaT**2 * (a[i]+a[i-1]) / 2
+# deltaX[i]: body displacement between times i and i+1
 # a[i]: body acceleration at time i
 
 # Helping functions
