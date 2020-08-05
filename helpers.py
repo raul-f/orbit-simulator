@@ -32,3 +32,17 @@ def get_module(vector: List[float]) -> List[float]:
     for coordinate in vector:
         square_module += coordinate ** 2
     return [square_module, square_module ** (1 / 2)]
+
+
+def get_Euler_acceleration(planet_displacement: float,
+                           planet_acceleration: float, planet_position: float,
+                           acceleration_constant: float) -> float:
+    """Returns the acceleration using the Euler's method"""
+    planet_displacement = (planet_displacement
+                           + planet_acceleration)
+    planet_position = (planet_position
+                       + planet_displacement)
+    planet_acceleration = get_normalized_acceleration(
+        planet_position) * acceleration_constant
+
+    return planet_acceleration

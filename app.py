@@ -29,7 +29,7 @@ import time
 
 __author__ = "Allan E. Feitosa"
 __credits__ = "Raul O. Figueiredo"
-__version__ = 1.1
+__version__ = 1.1.1
 
 
 def main() -> None:
@@ -70,7 +70,7 @@ def main() -> None:
 
     # Set and draw a planet (small body)
     planet_1: Circle = Circle(
-        Point(star_position[0] + 50, star_position[1] + 50), radius=2
+        Point(star_position[0] - 100, star_position[1]), radius=2
         )
     planet_1.setFill('white')
     planet_1.setOutline('white')
@@ -176,18 +176,13 @@ def main() -> None:
             planet_2_position += planet_2_displacement
 
             # intermediary step (to obtain k_2)
-            planet_1_inter_displacement = (planet_1_displacement
-                                           + planet_1_acceleration)
-            planet_2_inter_displacement = (planet_2_displacement
-                                           + planet_2_acceleration)
-            planet_1_inter_position = (planet_1_position
-                                       + planet_1_inter_displacement)
-            planet_2_inter_position = (planet_2_position
-                                       + planet_2_inter_displacement)
-            planet_1_inter_acceleration = get_normalized_acceleration(
-                planet_1_inter_position) * acceleration_constant
-            planet_2_inter_acceleration = get_normalized_acceleration(
-                planet_2_inter_position) * acceleration_constant
+
+            planet_1_inter_acceleration = get_Euler_acceleration(
+                planet_1_displacement, planet_1_acceleration,
+                planet_1_position, acceleration_constant)
+            planet_2_inter_acceleration = get_Euler_acceleration(
+                planet_2_displacement, planet_2_acceleration,
+                planet_2_position, acceleration_constant)
 
             # displacements update
             planet_1_displacement += (planet_1_acceleration
@@ -202,12 +197,7 @@ def main() -> None:
             print("Planet 2 colided with the star!")
             break
 
-        # Update the last displacement:
-        planet_1_position += planet_1_displacement
-        planet_2_position += planet_2_displacement
-
-        # The total displacement is final_position (the position
-        # at i + 1000) minus initial_position (the position at i)
+        # To update the window
         planet_1_total_displacement = (planet_1_position
                                        - planet_1_previous_position)
 
