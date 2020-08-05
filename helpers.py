@@ -11,7 +11,7 @@ __version__ = 1.0
 
 
 def get_normalized_acceleration(
-   position: List[float], radius: float) -> np.ndarray:
+   position: List[float]) -> np.ndarray:
     """Returns an array of the particle's normalized acceleration
     vector,from its position vector relative to the larger body
     and the mass of the larger body."""

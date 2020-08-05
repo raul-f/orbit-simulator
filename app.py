@@ -4,15 +4,19 @@
 """
 Orbit simulator script
 
-Simulates the orbit of a small body around a much larger body.
-The mass of the larger body in not considered. Uses a second-
-order discrete aproximation for the body position over time.
+Simulates the orbit of a small body around a much larger body. The mass of
+the larger body in not considered. Uses the Heun's method discrete
+aproximation for the body position over time.
 """
-
-# Second-order model:
-# deltaX[i+1] = deltaX[i] + deltaT**2 * (a[i]+a[i-1]) / 2
-# deltaX[i]: body displacement between times i and i+1
-# a[i]: body acceleration at time i
+# We calculate the displacement at each algorithm iteration using the
+# Heun's method:
+# deltaX[i] = deltaX[i-1] + (deltaT**2)*(k_1 + k_2)/2
+# deltaX[i] = X[i+1] - X[i] : body displacement between iterations i+1 and i
+# X[i]: body position at time i
+# deltaT : time step size
+# k_1 = a[i-1] : body acceleration at time i-1
+# k_2 : acceleration at position X_inter, obtained by the Euler's method as 
+# X_inter = X[i] + deltaX[i-1] + (delta**2)*a[i-1]
 
 # Helping functions
 from helpers import *
@@ -25,7 +29,7 @@ import time
 
 __author__ = "Allan E. Feitosa"
 __credits__ = "Raul O. Figueiredo"
-__version__ = 1.0
+__version__ = 1.1
 
 
 def main() -> None:
@@ -37,7 +41,7 @@ def main() -> None:
     gravitational_constant: float = 1
     mass: float = 1
     UA: float = 1
-    delta: float = 1.506e-3
+    delta: float = 1e-3
     star_radius: float = 0.1
 
     # Constants to avoid calculating repeatedly
@@ -66,7 +70,7 @@ def main() -> None:
 
     # Set and draw a planet (small body)
     planet_1: Circle = Circle(
-        Point(star_position[0] + 400, star_position[1] + 100), radius=2
+        Point(star_position[0] + 50, star_position[1] + 50), radius=2
         )
     planet_1.setFill('white')
     planet_1.setOutline('white')
@@ -74,9 +78,9 @@ def main() -> None:
     planet_1.draw(window)
 
     # Set and draw a second planet
-    # (does not interact with the previous one)
+    # (does not interact with the previous one yet)
     planet_2: Circle = Circle(
-        Point(star_position[0] + 100, star_position[1]), radius=2
+        Point(star_position[0] + 50, star_position[1] + 50), radius=2
     )
     planet_2.setFill('blue')
     planet_2.setOutline('blue')
@@ -86,51 +90,31 @@ def main() -> None:
     # Setting of initial conditions
 
     # Lists of the initial speedies (i = -1)
-    planet_1_initial_speedy = [-1, -0]
-    planet_2_initial_speedy = [0, 1.2]
+    planet_1_initial_speedy = [0, 1]
+    planet_2_initial_speedy = [0, 1]
 
-    # Arrays of the initial positions (i = -1)
-    # Using arrays makes calculations simpler
-    planet_1_initial_position = UA * np.array([
+    # Arrays of (initial) position
+    # Using numpy arrays makes calculations simpler
+    planet_1_position = UA * np.array([
             (planet_1_center.getX() - star_position[0])/100,
             (planet_1_center.getY() - star_position[1])/100,
         ])
-    planet_2_initial_position = UA * np.array([
+    planet_2_position = UA * np.array([
             (planet_2_center.getX() - star_position[0])/100,
             (planet_2_center.getY() - star_position[1])/100,
         ])
 
-    # Arrays of positions
-    # arg: [current position, previous position]
-    planet_1_positions = np.array([planet_1_initial_position, [0, 0]])
-    planet_2_positions = np.array([planet_2_initial_position, [0, 0]])
-
-    # An initial displacement (deltaX[-1]) is needed to calculate the
-    # acceleration in the first iteration (i = 0)
-    planet_1_initial_displacement = np.array(planet_1_initial_speedy) * delta
-    planet_2_initial_displacement = np.array(planet_2_initial_speedy) * delta
-    # Array of displacements
-    # arg: [next displacement, previous displacement]
-    planet_2_displacements = np.array([planet_2_initial_displacement, [0, 0]])
-    planet_1_displacements = np.array([planet_1_initial_displacement, [0, 0]])
-
-    # an initial aceleration is needed because we are using a
-    # second-order approximation for the body position
-    planet_1_initial_aceleration = get_normalized_acceleration(
-        planet_1_positions[0], star_radius) * acceleration_constant
-    planet_2_initial_aceleration = get_normalized_acceleration(
-        planet_2_positions[0], star_radius) * acceleration_constant
-    # Array of accelerations
-    # arg: [current acceleration, previous acceleration]
-    planet_1_accelerations = [planet_1_initial_aceleration, [0, 0]]
-    planet_2_accelerations = [planet_2_initial_aceleration, [0, 0]]
+    # An initial displacement (deltaX[-1]) is needed to update the bodies
+    # positions at the first iteration (i = 0)
+    planet_1_displacement = np.array(planet_1_initial_speedy) * delta
+    planet_2_displacement = np.array(planet_2_initial_speedy) * delta
 
     # The total displacement is the accumulated displacement in
     # a given number of iterations, used to update
     # the window simulation: that can saves us much time!
     # Initially, the total displacement is the initial displacement
-    planet_1_total_displacement = np.copy(planet_1_initial_displacement)
-    planet_2_total_displacement = np.copy(planet_2_initial_displacement)
+    planet_1_total_displacement = np.copy(planet_1_displacement)
+    planet_2_total_displacement = np.copy(planet_2_displacement)
 
     while True:
         # Trajectory Updates
@@ -175,46 +159,59 @@ def main() -> None:
         trajectory_2.setOutline('blue')
         trajectory_2.draw(window)
 
-        # We calculate the body position 1000 times between window updates.
+        # We calculate the body position a few times between window updates.
         # We take the position before the iterations:
-        planet_1_previous_position = np.copy(planet_1_positions[0])
-        planet_2_previous_position = np.copy(planet_2_positions[0])
-        for i in range(0, 1000):
-            # We update the previous values
-            planet_1_positions[1] = planet_1_positions[0]
-            planet_2_positions[1] = planet_2_positions[0]
-            planet_1_accelerations[1] = planet_1_accelerations[0]
-            planet_2_accelerations[1] = planet_2_accelerations[0]
-            planet_1_displacements[1] = planet_1_displacements[0]
-            planet_2_displacements[1] = planet_2_displacements[0]
+        planet_1_previous_position = np.copy(planet_1_position)
+        planet_2_previous_position = np.copy(planet_2_position)
+        for i in range(0, 10):
 
-            # We update the current values
-            planet_1_positions[0] += planet_1_displacements[0]
-            planet_2_positions[0] += planet_2_displacements[0]
-            planet_1_accelerations[0] = get_normalized_acceleration(
-                planet_1_positions[0], star_radius) * acceleration_constant
-            planet_2_accelerations[0] = get_normalized_acceleration(
-                planet_2_positions[0], star_radius) * acceleration_constant
-            # We apply the second-order model:
-            planet_1_displacements[0] += (planet_1_accelerations[0]
-                                          + planet_1_accelerations[1]) / 2
-            planet_2_displacements[0] += (planet_2_accelerations[0]
-                                          + planet_2_accelerations[1]) / 2
+            # previous positions accelerations (k_1 = a[i - 1])
+            planet_1_acceleration = get_normalized_acceleration(
+                planet_1_position) * acceleration_constant
+            planet_2_acceleration = get_normalized_acceleration(
+                planet_2_position) * acceleration_constant
 
-        if get_module(planet_2_positions[0])[1] < star_radius:
+            # We update the current positions
+            planet_1_position += planet_1_displacement
+            planet_2_position += planet_2_displacement
+
+            # intermediary step (to obtain k_2)
+            planet_1_inter_displacement = (planet_1_displacement
+                                           + planet_1_acceleration)
+            planet_2_inter_displacement = (planet_2_displacement
+                                           + planet_2_acceleration)
+            planet_1_inter_position = (planet_1_position
+                                       + planet_1_inter_displacement)
+            planet_2_inter_position = (planet_2_position
+                                       + planet_2_inter_displacement)
+            planet_1_inter_acceleration = get_normalized_acceleration(
+                planet_1_inter_position) * acceleration_constant
+            planet_2_inter_acceleration = get_normalized_acceleration(
+                planet_2_inter_position) * acceleration_constant
+
+            # displacements update
+            planet_1_displacement += (planet_1_acceleration
+                                      + planet_1_inter_acceleration) / 2
+            planet_2_displacement += (planet_2_acceleration
+                                      + planet_2_inter_acceleration) / 2
+
+        if get_module(planet_1_position)[1] <= star_radius:
             print("Planet 1 colided with the star!")
             break
-
-        if get_module(planet_2_positions[0])[1] < star_radius:
+        if get_module(planet_2_position)[1] <= star_radius:
             print("Planet 2 colided with the star!")
             break
 
+        # Update the last displacement:
+        planet_1_position += planet_1_displacement
+        planet_2_position += planet_2_displacement
+
         # The total displacement is final_position (the position
         # at i + 1000) minus initial_position (the position at i)
-        planet_1_total_displacement = (planet_1_positions[0]
+        planet_1_total_displacement = (planet_1_position
                                        - planet_1_previous_position)
 
-        planet_2_total_displacement = (planet_2_positions[0]
+        planet_2_total_displacement = (planet_2_position
                                        - planet_2_previous_position)
 
     # End of main code
