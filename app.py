@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Orbit simulator script
+Orbit simulator script. Version 2.0
 
 Simulates the orbit of a small body around a much larger body. The mass of
 the larger body in not considered. Uses the Heun's method discrete
@@ -29,7 +29,7 @@ import time
 
 __author__ = "Allan E. Feitosa"
 __credits__ = "Raul O. Figueiredo"
-__version__ = 1.1.1
+__version__ = 2.0
 
 
 def main() -> None:
@@ -41,170 +41,156 @@ def main() -> None:
     gravitational_constant: float = 1
     mass: float = 1
     UA: float = 1
-    delta: float = 1e-3
-    star_radius: float = 0.1
+    delta: float = 1e-2
+    star_radius: float = 1
+    num_points = 10000
+    points_inter = 10
+
+    window_width: int = 1366
+    window_height: int = 768
 
     # Constants to avoid calculating repeatedly
     gravitational_parameter = mass * gravitational_constant
     acceleration_constant = gravitational_parameter * delta**2
 
+    # New Classes
+
+    class Star(Circle):
+        def __init__(self, center, radius, color, outline):
+            super().__init__(Point(center[0], center[1]), radius)
+            self.center = center
+            self.radius = radius
+            self.color = color
+            self.setFill(self.color)
+            self.outline = outline
+            self.setOutline(self.outline)
+
+    class Planet(Circle):
+
+        num_planets = 0
+        planets = []
+
+        def __init__(self, center: list, radius: float, color: str,
+                     outline: str):
+            super().__init__(Point(center[0], center[1]), radius)
+            self.center = center
+            self.radius = radius
+            self.color = color
+            self.setFill(self.color)
+            self.outline = outline
+            self.setOutline(self.outline)
+            self.acceleration = []
+            self.displacement = []
+            self.position = []
+
+            Planet.num_planets += 1
+            Planet.planets.append(self)
+
+    star = Star(
+        [window_width/2, window_height/2], radius=20*star_radius,
+        color='#FDB813', outline='#FDB813'
+        )
+
+    planet_1 = Planet(
+        [star.center[0] - 150, star.center[1]], radius=5, color='white',
+        outline='white')
+
+    planet_2 = Planet(
+       [star.center[0] + 150, star.center[1]], radius=5, color='blue',
+       outline='blue')
+
+    # Setting of initial relative position to the star
+
+    planet_1.position.append(UA * np.array([
+            (planet_1.center[0] - star.center[0])/100,
+            (planet_1.center[1] - star.center[1])/100,
+        ]))
+
+    planet_2.position.append(UA * np.array([
+            (planet_2.center[0] - star.center[0])/100,
+            (planet_2.center[1] - star.center[1])/100,
+        ]))
+
+    # Initial speedies (i = -1)
+    planet_1_initial_speedy = [0, 1]
+    planet_2_initial_speedy = [0, 1]
+
+    # An initial displacement (deltaX[-1]) is needed to update the bodies
+    # positions at the first iteration (i = 0)
+
+    planet_1.displacement.append(np.array(planet_1_initial_speedy) * delta)
+    planet_2.displacement.append(np.array(planet_2_initial_speedy) * delta)
+
+    # call the simulation routine
+    simulation(num_points, Planet.planets, acceleration_constant)
+    # call the animation routine
+    animation(num_points, points_inter, Planet.planets, star, window_width, 
+              window_height)
+
+
+def simulation(num_points: int, planets: list,
+               acceleration_constant: float) -> None:
+    """Executes the simulations from a list of planets"""
+    for i in range(0, num_points):
+        for planet in planets:
+            # previous positions accelerations (k_1 = a[i - 1])
+            planet.acceleration.append(
+                get_normalized_acceleration(
+                    planet.position[-1]) * acceleration_constant)
+
+            # We update the current position
+            planet.position.append(
+                planet.position[-1] + planet.displacement[-1])
+
+            # intermediary step (to obtain k_2)
+            inter_acceleration = get_Euler_acceleration(
+                planet.displacement[-1],  planet.acceleration[-1],
+                planet.position[-1], acceleration_constant)
+
+            # displacements update
+            planet.displacement.append(
+                (planet.displacement[-1] + (planet.acceleration[-1]
+                 + inter_acceleration) / 2))
+
+
+def animation(num_points: int, points_inter: int, planets: list, star,
+              window_width: int, window_height: int) -> None:
+
     # Set the simulation window
-    window_width: int = 800
-    window_height: int = 600
     window: GraphWin = GraphWin(
         title="Orbit Simulator - phase 1", width=window_width,
         height=window_height
     )
     window.setBackground('#101010')
 
-    # Set and draw a star (large body)
-    star: Circle = Circle(
-        Point(window_width/2, window_height/2), radius=100*star_radius
-        )
-    star.setFill('#FDB813')
-    star_center = star.getCenter()
-    star_position = np.array([
-        star_center.getX(), star_center.getY()]
-        )
     star.draw(window)
+    for planet in planets:
+        planet.draw(window)
 
-    # Set and draw a planet (small body)
-    planet_1: Circle = Circle(
-        Point(star_position[0] - 100, star_position[1]), radius=2
-        )
-    planet_1.setFill('white')
-    planet_1.setOutline('white')
-    planet_1_center = planet_1.getCenter()
-    planet_1.draw(window)
+    for i in range(0, num_points, points_inter):
+        for planet in planets:
+            delta_X = 100 * (planet.position[i + points_inter][0]
+                             - planet.position[i][0])
+            delta_Y = 100 * (planet.position[i + points_inter][1]
+                             - planet.position[i][1])
+            trajectory: Line = Line(
+                Point(
+                    planet.getCenter().getX(),
+                    planet.getCenter().getY()
+                ),
+                Point(
+                    planet.getCenter().getX() + delta_X,
+                    planet.getCenter().getY() + delta_Y
+                )
+            )
+            planet.move(delta_X, delta_Y)
 
-    # Set and draw a second planet
-    # (does not interact with the previous one yet)
-    planet_2: Circle = Circle(
-        Point(star_position[0] + 50, star_position[1] + 50), radius=2
-    )
-    planet_2.setFill('blue')
-    planet_2.setOutline('blue')
-    planet_2_center = planet_2.getCenter()
-    planet_2.draw(window)
+            trajectory.setOutline(planet.outline)
+            trajectory.draw(window)
 
-    # Setting of initial conditions
+        time.sleep(0.01)
 
-    # Lists of the initial speedies (i = -1)
-    planet_1_initial_speedy = [0, 1]
-    planet_2_initial_speedy = [0, 1]
-
-    # Arrays of (initial) position
-    # Using numpy arrays makes calculations simpler
-    planet_1_position = UA * np.array([
-            (planet_1_center.getX() - star_position[0])/100,
-            (planet_1_center.getY() - star_position[1])/100,
-        ])
-    planet_2_position = UA * np.array([
-            (planet_2_center.getX() - star_position[0])/100,
-            (planet_2_center.getY() - star_position[1])/100,
-        ])
-
-    # An initial displacement (deltaX[-1]) is needed to update the bodies
-    # positions at the first iteration (i = 0)
-    planet_1_displacement = np.array(planet_1_initial_speedy) * delta
-    planet_2_displacement = np.array(planet_2_initial_speedy) * delta
-
-    # The total displacement is the accumulated displacement in
-    # a given number of iterations, used to update
-    # the window simulation: that can saves us much time!
-    # Initially, the total displacement is the initial displacement
-    planet_1_total_displacement = np.copy(planet_1_displacement)
-    planet_2_total_displacement = np.copy(planet_2_displacement)
-
-    while True:
-        # Trajectory Updates
-        # At the first iteration (i = 0), we move the planets
-        # accordingly to the initial displacements
-        # Planet 1:
-        trajectory_1: Line = Line(
-            Point(
-                planet_1.getCenter().getX(),
-                planet_1.getCenter().getY()
-            ),
-            Point(
-                planet_1.getCenter().getX()
-                + 100*planet_1_total_displacement[0],
-                planet_1.getCenter().getY()
-                + 100*planet_1_total_displacement[1]
-            ),
-        )
-        planet_1.move(
-            100 * planet_1_total_displacement[0],
-            100 * planet_1_total_displacement[1]
-        )
-        trajectory_1.setOutline('#b7b7c2')
-        trajectory_1.draw(window)
-        # Planet 2:
-        trajectory_2: Line = Line(
-            Point(
-                planet_2.getCenter().getX(),
-                planet_2.getCenter().getY()
-            ),
-            Point(
-                planet_2.getCenter().getX()
-                + 100*planet_2_total_displacement[0],
-                planet_2.getCenter().getY()
-                + 100*planet_2_total_displacement[1]
-            ),
-        )
-        planet_2.move(
-            100 * planet_2_total_displacement[0],
-            100 * planet_2_total_displacement[1]
-        )
-        trajectory_2.setOutline('blue')
-        trajectory_2.draw(window)
-
-        # We calculate the body position a few times between window updates.
-        # We take the position before the iterations:
-        planet_1_previous_position = np.copy(planet_1_position)
-        planet_2_previous_position = np.copy(planet_2_position)
-        for i in range(0, 10):
-
-            # previous positions accelerations (k_1 = a[i - 1])
-            planet_1_acceleration = get_normalized_acceleration(
-                planet_1_position) * acceleration_constant
-            planet_2_acceleration = get_normalized_acceleration(
-                planet_2_position) * acceleration_constant
-
-            # We update the current positions
-            planet_1_position += planet_1_displacement
-            planet_2_position += planet_2_displacement
-
-            # intermediary step (to obtain k_2)
-
-            planet_1_inter_acceleration = get_Euler_acceleration(
-                planet_1_displacement, planet_1_acceleration,
-                planet_1_position, acceleration_constant)
-            planet_2_inter_acceleration = get_Euler_acceleration(
-                planet_2_displacement, planet_2_acceleration,
-                planet_2_position, acceleration_constant)
-
-            # displacements update
-            planet_1_displacement += (planet_1_acceleration
-                                      + planet_1_inter_acceleration) / 2
-            planet_2_displacement += (planet_2_acceleration
-                                      + planet_2_inter_acceleration) / 2
-
-        if get_module(planet_1_position)[1] <= star_radius:
-            print("Planet 1 colided with the star!")
-            break
-        if get_module(planet_2_position)[1] <= star_radius:
-            print("Planet 2 colided with the star!")
-            break
-
-        # To update the window
-        planet_1_total_displacement = (planet_1_position
-                                       - planet_1_previous_position)
-
-        planet_2_total_displacement = (planet_2_position
-                                       - planet_2_previous_position)
-
-    # End of main code
+    window.getMouse()
 
 
 main()
