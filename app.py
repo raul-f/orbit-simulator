@@ -29,34 +29,33 @@ import time
 
 __author__ = "Allan E. Feitosa"
 __credits__ = "Raul O. Figueiredo"
-__version__ = 2.0
+__version__ = 2.1
 
 
 def main() -> None:
     # Main code
 
-    start: Decimal = Decimal(time.time())
-
     # constant parameters
     gravitational_constant: float = 1
-    mass: float = 1
+    star_mass: float = 1
     UA: float = 1
-    delta: float = 1e-2
-    star_radius: float = 1
-    num_points = 10000
-    points_inter = 10
+    delta: float = 1e-3
+    star_radius: float = 0.2
+    num_points = 100000
+    points_inter = 100
 
-    window_width: int = 1366
-    window_height: int = 768
+    window_width: int = 1000
+    window_height: int = 700
 
     # Constants to avoid calculating repeatedly
-    gravitational_parameter = mass * gravitational_constant
-    acceleration_constant = gravitational_parameter * delta**2
+    gravitational_parameter = star_mass * gravitational_constant
+    # acceleration_constant = gravitational_parameter * delta**2
 
     # New Classes
 
     class Star(Circle):
-        def __init__(self, center, radius, color, outline):
+        def __init__(self, center: list, radius: float, mass: float,
+                     color: str, outline: str):
             super().__init__(Point(center[0], center[1]), radius)
             self.center = center
             self.radius = radius
@@ -70,34 +69,35 @@ def main() -> None:
         num_planets = 0
         planets = []
 
-        def __init__(self, center: list, radius: float, color: str,
-                     outline: str):
+        def __init__(self, center: list, radius: float, mass: float,
+                     color: str, outline: str):
             super().__init__(Point(center[0], center[1]), radius)
             self.center = center
             self.radius = radius
+            self.mass = mass
             self.color = color
             self.setFill(self.color)
             self.outline = outline
             self.setOutline(self.outline)
             self.acceleration = []
-            self.displacement = []
+            self.velocity = []
             self.position = []
 
             Planet.num_planets += 1
             Planet.planets.append(self)
 
     star = Star(
-        [window_width/2, window_height/2], radius=20*star_radius,
-        color='#FDB813', outline='#FDB813'
+        [window_width/2, window_height/2], radius=100*star_radius,
+        mass=star_mass, color='#FDB813', outline='#FDB813'
         )
 
     planet_1 = Planet(
-        [star.center[0] - 150, star.center[1]], radius=5, color='white',
-        outline='white')
+        [star.center[0] - 50, star.center[1] + 100], radius=4, color='white',
+        mass=0.001, outline='white')
 
     planet_2 = Planet(
-       [star.center[0] + 150, star.center[1]], radius=5, color='blue',
-       outline='blue')
+       [star.center[0] + 50, star.center[1] - 100], radius=4, color='blue',
+       mass=0.001, outline='blue')
 
     # Setting of initial relative position to the star
 
@@ -112,45 +112,81 @@ def main() -> None:
         ]))
 
     # Initial speedies (i = -1)
-    planet_1_initial_speedy = [0, 1]
-    planet_2_initial_speedy = [0, 1]
+    planet_1_initial_speedy = [1, 0]
+    planet_2_initial_speedy = [-1, 0]
 
     # An initial displacement (deltaX[-1]) is needed to update the bodies
     # positions at the first iteration (i = 0)
 
-    planet_1.displacement.append(np.array(planet_1_initial_speedy) * delta)
-    planet_2.displacement.append(np.array(planet_2_initial_speedy) * delta)
+    planet_1.velocity.append(np.array(planet_1_initial_speedy))
+    planet_2.velocity.append(np.array(planet_2_initial_speedy))
+
+    planets_force_constant = (planet_1.mass
+                              * planet_2.mass
+                              * gravitational_constant)
 
     # call the simulation routine
-    simulation(num_points, Planet.planets, acceleration_constant)
+    start: Decimal = Decimal(time.time())
+    simulation(num_points, Planet.planets, delta, gravitational_parameter,
+               planets_force_constant)    
+    end: Decimal = Decimal(time.time())
+    simulation_time: Decimal = round((end - start) * 1000, 3)
+    print(
+        f'This program took {simulation_time} miliseconds ({simulation_time / 1000} seconds) to run.'
+    )
     # call the animation routine
-    animation(num_points, points_inter, Planet.planets, star, window_width, 
+    animation(num_points, points_inter, Planet.planets, star, window_width,
               window_height)
 
 
-def simulation(num_points: int, planets: list,
-               acceleration_constant: float) -> None:
+def simulation(num_points: int, planets: list, delta: float,
+               gravitational_parameter: float,
+               planets_force_constant: float) -> None:
     """Executes the simulations from a list of planets"""
+    delta_sqr = delta**2
+    distance = np.zeros(2)
+    for planet in planets:
+        distance = -distance - planet.position[-1]
     for i in range(0, num_points):
+        force = (planets_force_constant
+                 * get_normalized_force(distance))
+
+        distance = np.zeros(2)
         for planet in planets:
-            # previous positions accelerations (k_1 = a[i - 1])
+            # previous acceleration (a[i-1])
             planet.acceleration.append(
-                get_normalized_acceleration(
-                    planet.position[-1]) * acceleration_constant)
+                force/planet.mass
+                + get_normalized_acceleration(
+                    planet.position[-1]) * gravitational_parameter)
 
-            # We update the current position
+            # intermediary step
             planet.position.append(
-                planet.position[-1] + planet.displacement[-1])
+                planet.position[-1] + planet.velocity[-1]*delta
+                + planet.acceleration[-1] * delta_sqr / 2)
 
-            # intermediary step (to obtain k_2)
-            inter_acceleration = get_Euler_acceleration(
-                planet.displacement[-1],  planet.acceleration[-1],
-                planet.position[-1], acceleration_constant)
+            distance = -distance - planet.position[-1]
+            force = -force
 
-            # displacements update
-            planet.displacement.append(
-                (planet.displacement[-1] + (planet.acceleration[-1]
-                 + inter_acceleration) / 2))
+        inter_force = (planets_force_constant
+                       * get_normalized_force(distance))
+        distance = np.zeros(2)
+
+        for planet in planets:
+            inter_acceleration = (
+                inter_force/planet.mass
+                + get_normalized_acceleration(planet.position[-1])
+                * gravitational_parameter)
+            planet.velocity.append(
+                planet.velocity[-1]
+                + delta * (planet.acceleration[-1]
+                           + inter_acceleration) / 2
+            )
+            planet.position[-1] = (planet.position[-2]
+                                   + delta * (planet.velocity[-1]
+                                              + planet.velocity[-2]) / 2)
+
+            distance = -distance - planet.position[-1]
+            inter_force = -inter_force
 
 
 def animation(num_points: int, points_inter: int, planets: list, star,
@@ -188,9 +224,8 @@ def animation(num_points: int, points_inter: int, planets: list, star,
             trajectory.setOutline(planet.outline)
             trajectory.draw(window)
 
-        time.sleep(0.01)
+        time.sleep(0.05)
 
     window.getMouse()
-
 
 main()
