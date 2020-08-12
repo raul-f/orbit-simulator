@@ -7,27 +7,18 @@ import numpy as np
 
 __author__ = "Allan E. Feitosa"
 __credits__ = "Raul O. Figueiredo"
-__version__ = 1.0
+__version__ = 3.0
 
 
-def get_normalized_acceleration(
-   position: np.ndarray) -> np.ndarray:
+def get_normd_acceleration(
+   distance: np.ndarray) -> np.ndarray:
     """Returns an array of the particle's normalized acceleration
-    vector, from its position vector relative to the larger body
-    and the mass of the larger body."""
-    position_module = get_module(position)
-    normalized_acceleration = (-position
-                               / (position_module[0] * position_module[1]))
+    vector, from its position vector relative to another body"""
+    distance_module = get_module(distance)
+    normalized_acceleration = (-distance
+                               / (distance_module[0] * distance_module[1]))
 
     return normalized_acceleration
-
-
-def get_normalized_force(distance: np.array) -> np.array:
-    """Returns the normalized gravitacional force between two planets"""
-    distance_module = get_module(distance)
-    normalized_force = (-distance
-                        / (distance_module[0] * distance_module[1]))
-    return normalized_force
 
 
 def get_module(vector: np.ndarray) -> List[float]:
